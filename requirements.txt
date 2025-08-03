@@ -10,7 +10,7 @@ langchain-huggingface
 langchain
 langchain-core
 sentence-transformers
-chromadb
+chromadb>=0.4.24
+
 bs4
 requests
-
