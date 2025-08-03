@@ -7,10 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
 import re
-
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=FutureWarning)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -19,7 +16,13 @@ from langchain_groq import ChatGroq
 from langchain.docstore.document import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 
+# 🧠 Import prompt logic
+from prompt import generate_prompt
+
 # ------------------------- ENVIRONMENT -------------------------
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0 (MyApp/1.0)")
@@ -82,7 +85,7 @@ def load_and_prepare_docs(urls: List[str]) -> FAISS:
     )
     chunks = splitter.split_documents(docs)
     chunks = [doc for doc in chunks if is_valid_text(doc.page_content)]
-    chunks = chunks[:50]  # ✅ Avoid memory crash
+    chunks = chunks[:50]  # ✅ Prevent memory crash
 
     for doc in chunks:
         doc.metadata["uuid"] = str(uuid.uuid4())
@@ -95,6 +98,7 @@ def load_and_prepare_docs(urls: List[str]) -> FAISS:
         raise RuntimeError(f"❌ Failed to initialize FAISS vector store: {e}")
 
     return vectorstore
+
 # ------------------------- QA CHAIN -------------------------
 def get_qa_chain(vectorstore: FAISS, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
     if llm is None:
@@ -108,7 +112,7 @@ def get_qa_chain(vectorstore: FAISS, llm=None, return_sources: bool = False) -> 
     )
     return qa_chain, llm
 
-# ------------------------- PROMPT HELPERS -------------------------
+# ------------------------- SUMMARIZATION HELPERS -------------------------
 def summarize_text(text, max_chars=2000):
     cleaned = text.strip()
     if not cleaned:
@@ -123,34 +127,6 @@ def summarize_text(text, max_chars=2000):
             break
         result += para + "\n"
     return result.strip()
-
-def generate_prompt(question: str, combined_text: str) -> str:
-    question_lower = question.lower()
-
-    if "challenge" in question_lower or "barrier" in question_lower:
-        instruction = (
-            "Extract a bullet-point list of key *regulatory and economic challenges* "
-            "slowing down real estate growth in India. Avoid general advice or trends.\n\n"
-        )
-    elif "trend" in question_lower or "update" in question_lower:
-        instruction = (
-            "Summarize the following into a concise, bullet-point list of *real estate trends* "
-            "in India based on the latest sources. Exclude outdated or international trends.\n\n"
-        )
-    elif "impact" in question_lower or "effect" in question_lower:
-        instruction = (
-            "Describe the *impact* or lack thereof of the following content. If no clear impact is found, list the most relevant real estate insights instead.\n\n"
-        )
-    elif "opportunity" in question_lower or "growth area" in question_lower:
-        instruction = (
-            "Extract a bullet-point list of *emerging opportunities or growth areas* in the Indian real estate market.\n\n"
-        )
-    else:
-        instruction = (
-            "Summarize the relevant insights from the content below as a concise bullet-point list.\n\n"
-        )
-
-    return instruction + combined_text
 
 def safe_invoke(llm, prompt, retries=3, delay=65):
     for attempt in range(retries):
