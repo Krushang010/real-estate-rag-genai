@@ -6,13 +6,14 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
-
+import re
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
 from langchain.docstore.document import Document
@@ -28,21 +29,19 @@ if not GROQ_API_KEY:
     raise EnvironmentError("🚫 GROQ_API_KEY is not set in your .env file.")
 
 # ------------------------- GLOBAL MODELS -------------------------
-collections = {}
 embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # ------------------------- LLM INITIALIZATION -------------------------
-def init_llm(model_name: str = "llama3-8b-8192", temperature=0.9):
+def init_llm(model_name: str = "llama3-8b-8192", temperature=0.7):
     return ChatGroq(api_key=GROQ_API_KEY, model_name=model_name, temperature=temperature)
 
-# ------------------------- VECTORSTORE SETUP -------------------------
-def reset_collection(persist_directory: str, collection_name: str):
-    full_path = os.path.join(persist_directory, collection_name)
-    if os.path.exists(full_path):
-        import shutil
-        shutil.rmtree(full_path)
-        print(f"🔁 Reset vectorstore at: {full_path}")
+# ------------------------- TEXT FILTER -------------------------
+def is_valid_text(text, min_alpha_ratio=0.6):
+    text = re.sub(r'\s+', '', text)
+    alpha_chars = sum(c.isalpha() for c in text)
+    return alpha_chars / len(text) > min_alpha_ratio if text else False
 
+# ------------------------- FETCH + CLEAN -------------------------
 def fetch_clean_url(url: str) -> Document:
     try:
         headers = {
@@ -54,7 +53,11 @@ def fetch_clean_url(url: str) -> Document:
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
-        text = soup.get_text(separator=" ", strip=True)
+
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
+
+        text = soup.body.get_text(separator=" ", strip=True) if soup.body else soup.get_text(separator=" ", strip=True)
         return Document(page_content=text, metadata={"source": url})
     except Exception as e:
         print(f"❌ Error fetching {url}: {e}")
@@ -65,18 +68,8 @@ def load_urls_parallel(urls: List[str], max_workers: int = 6) -> List[Document]:
         docs = list(executor.map(fetch_clean_url, urls))
     return [doc for doc in docs if doc]
 
-def load_and_prepare_docs(
-    urls: List[str],
-    collection_name: str = "default_collection",
-    persist_directory: str = "chroma_db",
-    reset: bool = False
-) -> Chroma:
-    if reset:
-        reset_collection(persist_directory, collection_name)
-
-    if collection_name in collections and not reset:
-        return collections[collection_name]
-
+# ------------------------- VECTORSTORE -------------------------
+def load_and_prepare_docs(urls: List[str]) -> FAISS:
     docs = load_urls_parallel(urls)
 
     if not docs or all(not doc.page_content.strip() for doc in docs):
@@ -88,36 +81,21 @@ def load_and_prepare_docs(
         separators=["\n\n", "\n", ".", " "]
     )
     chunks = splitter.split_documents(docs)
-
-    # ✅ TEMPORARY limit chunks to avoid memory crash
-    chunks = chunks[:50]  # <-- You can increase this slowly (20, 50, etc.)
-
-    print(f"🔢 Embedding {len(chunks)} chunks...")
+    chunks = [doc for doc in chunks if is_valid_text(doc.page_content)]
+    chunks = chunks[:50]  # ✅ Limit to prevent memory crash
 
     for doc in chunks:
         doc.metadata["uuid"] = str(uuid.uuid4())
 
-    # ✅ RAM-safe embedding (chunk by chunk if needed)
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=embedding_model,
-        collection_name=collection_name,
-        persist_directory=persist_directory
-    )
+    print(f"🔢 Embedding {len(chunks)} chunks...")
 
-    collections[collection_name] = vectorstore
+    vectorstore = FAISS.from_documents(documents=chunks, embedding=embedding_model)
     return vectorstore
 
-
 # ------------------------- QA CHAIN -------------------------
-def get_qa_chain(
-    vectorstore: Chroma,
-    llm=None,
-    return_sources: bool = False
-) -> Tuple[RetrievalQA, ChatGroq]:
+def get_qa_chain(vectorstore: FAISS, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
     if llm is None:
         llm = init_llm()
-
     retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
@@ -127,7 +105,7 @@ def get_qa_chain(
     )
     return qa_chain, llm
 
-# ------------------------- UTILITIES -------------------------
+# ------------------------- PROMPT HELPERS -------------------------
 def summarize_text(text, max_chars=2000):
     cleaned = text.strip()
     if not cleaned:
@@ -154,7 +132,7 @@ def generate_prompt(question: str, combined_text: str) -> str:
     elif "trend" in question_lower or "update" in question_lower:
         instruction = (
             "Summarize the following into a concise, bullet-point list of *real estate trends* "
-            "in India, based on the latest available information.\n\n"
+            "in India based on the latest sources. Exclude outdated or international trends.\n\n"
         )
     elif "impact" in question_lower or "effect" in question_lower:
         instruction = (
@@ -220,12 +198,7 @@ if __name__ == "__main__":
     ]
 
     print("⏳ Loading and embedding URLs...")
-    vectorstore = load_and_prepare_docs(
-        urls=urls,
-        collection_name="real_estate_collection",
-        persist_directory="chroma_db",
-        reset=False
-    )
+    vectorstore = load_and_prepare_docs(urls)
 
     qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
 
