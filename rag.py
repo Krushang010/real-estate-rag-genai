@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -29,21 +28,13 @@ if not GROQ_API_KEY:
     raise EnvironmentError("🚫 GROQ_API_KEY is not set in your .env file.")
 
 # ------------------------- GLOBAL MODELS -------------------------
-collections = {}
 embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # ------------------------- LLM INITIALIZATION -------------------------
 def init_llm(model_name: str = "llama3-8b-8192", temperature=0.9):
     return ChatGroq(api_key=GROQ_API_KEY, model_name=model_name, temperature=temperature)
 
-# ------------------------- VECTORSTORE SETUP -------------------------
-def reset_collection(persist_directory: str, collection_name: str):
-    full_path = os.path.join(persist_directory, collection_name)
-    if os.path.exists(full_path):
-        import shutil
-        shutil.rmtree(full_path)
-        print(f"🔁 Reset vectorstore at: {full_path}")
-
+# ------------------------- URL LOADER -------------------------
 def fetch_clean_url(url: str) -> Document:
     try:
         headers = {
@@ -66,18 +57,8 @@ def load_urls_parallel(urls: List[str], max_workers: int = 6) -> List[Document]:
         docs = list(executor.map(fetch_clean_url, urls))
     return [doc for doc in docs if doc]
 
-def load_and_prepare_docs(
-    urls: List[str],
-    collection_name: str = "default_collection",
-    persist_directory: str = "chroma_db",
-    reset: bool = False
-) -> Chroma:
-    if reset:
-        reset_collection(persist_directory, collection_name)
-
-    if collection_name in collections and not reset:
-        return collections[collection_name]
-
+# ------------------------- VECTORSTORE SETUP -------------------------
+def load_and_prepare_docs(urls: List[str]) -> Chroma:
     docs = load_urls_parallel(urls)
 
     if not docs or all(not doc.page_content.strip() for doc in docs):
@@ -89,33 +70,24 @@ def load_and_prepare_docs(
         separators=["\n\n", "\n", ".", " "]
     )
     chunks = splitter.split_documents(docs)
-
-    # ✅ TEMPORARY limit chunks to avoid memory crash
-    chunks = chunks[:50]  # <-- You can increase this slowly (20, 50, etc.)
-
-    print(f"🔢 Embedding {len(chunks)} chunks...")
+    chunks = chunks[:50]
 
     for doc in chunks:
         doc.metadata["uuid"] = str(uuid.uuid4())
 
-    # ✅ RAM-safe embedding (chunk by chunk if needed)
+    print(f"🔢 Embedding {len(chunks)} chunks...")
+
+    # ✅ In-memory only — no collection_name, no persist_directory
     vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=embedding_model,
-        collection_name=collection_name,
-        persist_directory=None,  # disables persistence
+        persist_directory=None
     )
 
-    collections[collection_name] = vectorstore
     return vectorstore
 
-
 # ------------------------- QA CHAIN -------------------------
-def get_qa_chain(
-    vectorstore: Chroma,
-    llm=None,
-    return_sources: bool = False
-) -> Tuple[RetrievalQA, ChatGroq]:
+def get_qa_chain(vectorstore: Chroma, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
     if llm is None:
         llm = init_llm()
 
@@ -221,12 +193,7 @@ if __name__ == "__main__":
     ]
 
     print("⏳ Loading and embedding URLs...")
-    vectorstore = load_and_prepare_docs(
-        urls=urls,
-        collection_name="real_estate_collection",
-        persist_directory=None,
-        reset=False
-    )
+    vectorstore = load_and_prepare_docs(urls)
 
     qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
 
