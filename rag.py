@@ -58,7 +58,7 @@ def load_urls_parallel(urls: List[str], max_workers: int = 6) -> List[Document]:
     return [doc for doc in docs if doc]
 
 # ------------------------- VECTORSTORE SETUP -------------------------
-from chromadb.config import Settings  # ✅ Required for in-memory setup
+from chromadb.config import Settings  # ✅ Required for in-memory config
 
 def load_and_prepare_docs(urls: List[str]) -> Chroma:
     docs = load_urls_parallel(urls)
@@ -79,10 +79,9 @@ def load_and_prepare_docs(urls: List[str]) -> Chroma:
 
     print(f"🔢 Embedding {len(chunks)} chunks...")
 
-    # ✅ In-memory ChromaDB (NO SQLite)
+    # ✅ FINAL: in-memory Chroma settings without persist_directory
     chroma_settings = Settings(
-        chroma_db_impl="duckdb",
-        persist_directory=None,
+        chroma_db_impl="duckdb+parquet",
         anonymized_telemetry=False
     )
 
