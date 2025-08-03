@@ -7,3 +7,10 @@ langchain-groq
 langchain-community
 protobuf
 langchain-huggingface
+langchain
+langchain-core
+sentence-transformers
+chromadb
+bs4
+requests
+
