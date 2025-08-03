@@ -10,7 +10,7 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
-
+from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
@@ -58,9 +58,7 @@ def load_urls_parallel(urls: List[str], max_workers: int = 6) -> List[Document]:
     return [doc for doc in docs if doc]
 
 # ------------------------- VECTORSTORE SETUP -------------------------
-from chromadb.config import Settings  # ✅ Required for in-memory config
-
-def load_and_prepare_docs(urls: List[str]) -> Chroma:
+def load_and_prepare_docs(urls: List[str]) -> FAISS:
     docs = load_urls_parallel(urls)
 
     if not docs or all(not doc.page_content.strip() for doc in docs):
@@ -79,22 +77,14 @@ def load_and_prepare_docs(urls: List[str]) -> Chroma:
 
     print(f"🔢 Embedding {len(chunks)} chunks...")
 
-    # ✅ FINAL: in-memory Chroma settings without persist_directory
-    chroma_settings = Settings(
-        chroma_db_impl="duckdb+parquet",
-        anonymized_telemetry=False
-    )
-
-    vectorstore = Chroma.from_documents(
+    vectorstore = FAISS.from_documents(
         documents=chunks,
-        embedding=embedding_model,
-        client_settings=chroma_settings
+        embedding=embedding_model
     )
-
     return vectorstore
 
 # ------------------------- QA CHAIN -------------------------
-def get_qa_chain(vectorstore: Chroma, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
+def get_qa_chain(vectorstore: FAISS, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
     if llm is None:
         llm = init_llm()
 
