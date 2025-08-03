@@ -70,12 +70,8 @@ if process_url_button:
     else:
         try:
             placeholder.info("⏳ Processing URLs...")
-            vectorstore = load_and_prepare_docs(
-                urls=urls,
-                collection_name="real_estate_collection",
-                persist_directory="chroma_db",
-                reset=reset_vectorstore
-            )
+            vectorstore = load_and_prepare_docs(urls)
+
             qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
             st.session_state.vectorstore = vectorstore
             st.session_state.qa_chain = qa_chain
