@@ -6,10 +6,9 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
+
 import warnings
-
 warnings.filterwarnings("ignore", category=UserWarning)
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
