@@ -11,6 +11,12 @@ langchain
 langchain-core
 sentence-transformers
 chromadb>=0.4.24
+<<<<<<< HEAD
+=======
+
+bs4
+requests
+>>>>>>> cd07ef438bf6605434a0e22e8f10b5abb01652e1
 
 bs4
 requests
