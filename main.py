@@ -66,12 +66,16 @@ if "llm" not in st.session_state:
 if process_url_button:
     urls = [url for url in [url1, url2, url3] if url.strip()]
     if not urls:
-        placeholder.warning("❗ Please provide at least one valid URL. Example: https://www.cnbc.com/")
+        placeholder.warning("❗ Please provide at least one valid URL.")
     else:
         try:
             placeholder.info("⏳ Processing URLs...")
-            vectorstore = load_and_prepare_docs(urls)
-
+            vectorstore = load_and_prepare_docs(
+                urls=urls,
+                collection_name="real_estate_collection",
+                persist_directory="chroma_db",
+                reset=reset_vectorstore
+            )
             qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
             st.session_state.vectorstore = vectorstore
             st.session_state.qa_chain = qa_chain
@@ -89,12 +93,11 @@ if query:
         if not st.session_state.qa_chain or not st.session_state.llm:
             st.warning("⚠️ Please process URLs first.")
         else:
-            with st.spinner("🧠 Generating answer..."):
-                summary, sources = run_rag_pipeline(
-                    query,
-                    st.session_state.qa_chain,
-                    st.session_state.llm
-                )
+            # Inject globals (needed by pipeline)
+            globals()["qa_chain"] = st.session_state.qa_chain
+            globals()["llm"] = st.session_state.llm
+
+            summary, sources = run_rag_pipeline(query, st.session_state.qa_chain, st.session_state.llm)
 
             st.markdown("### 📌 Answer")
             st.markdown(f"<div class='highlight'>{summary}</div>", unsafe_allow_html=True)
