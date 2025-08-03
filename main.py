@@ -1,4 +1,4 @@
-# @Author: Krushang Patel |  GenAI RAG UI
+# @Author: Krushang Patel | GenAI RAG UI (FAISS)
 
 import streamlit as st
 from rag import load_and_prepare_docs, get_qa_chain, run_rag_pipeline
@@ -54,30 +54,26 @@ process_url_button = st.sidebar.button("🔄 Process URLs")
 
 placeholder = st.empty()
 
-# Session state setup
-if "vectorstore" not in st.session_state:
+# --- Session State Init ---
+if "vectorstore" not in st.session_state or reset_vectorstore:
     st.session_state.vectorstore = None
-if "qa_chain" not in st.session_state:
     st.session_state.qa_chain = None
-if "llm" not in st.session_state:
     st.session_state.llm = None
 
-# --- Processing URLs ---
+# --- URL Processing ---
 if process_url_button:
     urls = [url for url in [url1, url2, url3] if url.strip()]
     if not urls:
         placeholder.warning("❗ Please provide at least one valid URL.")
     else:
         try:
-            placeholder.info("⏳ Processing URLs...")
-            vectorstore = load_and_prepare_docs(
-                urls=urls,
-            )
+            placeholder.info("⏳ Processing URLs and embedding...")
+            vectorstore = load_and_prepare_docs(urls=urls)
             qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
             st.session_state.vectorstore = vectorstore
             st.session_state.qa_chain = qa_chain
             st.session_state.llm = llm
-            placeholder.success("✅ URLs processed and indexed successfully.")
+            placeholder.success("✅ URLs processed and vectorstore is ready.")
         except Exception as e:
             placeholder.error(f"❌ Failed to process URLs: {e}")
 
@@ -86,15 +82,15 @@ st.markdown("---")
 query = st.text_input("💬 Ask your question about real estate")
 
 if query:
-    try:
-        if not st.session_state.qa_chain or not st.session_state.llm:
-            st.warning("⚠️ Please process URLs first.")
-        else:
-            # Inject globals (needed by pipeline)
-            globals()["qa_chain"] = st.session_state.qa_chain
-            globals()["llm"] = st.session_state.llm
-
-            summary, sources = run_rag_pipeline(query, st.session_state.qa_chain, st.session_state.llm)
+    if not st.session_state.qa_chain or not st.session_state.llm:
+        st.warning("⚠️ Please process URLs first.")
+    else:
+        try:
+            summary, sources = run_rag_pipeline(
+                question=query,
+                qa_chain=st.session_state.qa_chain,
+                llm=st.session_state.llm
+            )
 
             st.markdown("### 📌 Answer")
             st.markdown(f"<div class='highlight'>{summary}</div>", unsafe_allow_html=True)
@@ -103,5 +99,6 @@ if query:
                 st.markdown("#### 🔗 Sources")
                 for src in sources:
                     st.markdown(f"- {src}")
-    except Exception as e:
-        st.error(f"❌ Error while generating answer: {e}")
+
+        except Exception as e:
+            st.error(f"❌ Error generating answer: {e}")

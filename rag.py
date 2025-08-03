@@ -82,16 +82,19 @@ def load_and_prepare_docs(urls: List[str]) -> FAISS:
     )
     chunks = splitter.split_documents(docs)
     chunks = [doc for doc in chunks if is_valid_text(doc.page_content)]
-    chunks = chunks[:50]  # ✅ Limit to prevent memory crash
+    chunks = chunks[:50]  # ✅ Avoid memory crash
 
     for doc in chunks:
         doc.metadata["uuid"] = str(uuid.uuid4())
 
     print(f"🔢 Embedding {len(chunks)} chunks...")
 
-    vectorstore = FAISS.from_documents(documents=chunks, embedding=embedding_model)
-    return vectorstore
+    try:
+        vectorstore = FAISS.from_documents(documents=chunks, embedding=embedding_model)
+    except Exception as e:
+        raise RuntimeError(f"❌ Failed to initialize FAISS vector store: {e}")
 
+    return vectorstore
 # ------------------------- QA CHAIN -------------------------
 def get_qa_chain(vectorstore: FAISS, llm=None, return_sources: bool = False) -> Tuple[RetrievalQA, ChatGroq]:
     if llm is None:
@@ -198,18 +201,20 @@ if __name__ == "__main__":
     ]
 
     print("⏳ Loading and embedding URLs...")
-    vectorstore = load_and_prepare_docs(urls)
-
-    qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
-
-    question = "Find the trend of real estate market India?"
-    print("❓ Question:", question)
 
     try:
+        vectorstore = load_and_prepare_docs(urls)
+        qa_chain, llm = get_qa_chain(vectorstore, return_sources=True)
+
+        question = "Find the trend of real estate market India?"
+        print("❓ Question:", question)
+
         summary, sources = run_rag_pipeline(question, qa_chain, llm)
+
         print("\n📌 Refined Summary:\n", summary)
         print("\n🔗 Sources:")
         for src in sources:
             print("•", src)
+
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Failed to process URLs: {e}")
