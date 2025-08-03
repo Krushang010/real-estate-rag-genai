@@ -12,3 +12,4 @@ bs4
 requests
 protobuf
 chromadb>=0.4.24
+faiss-cpu==1.8.0  # or whichever is compatible
