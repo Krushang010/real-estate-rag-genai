@@ -104,7 +104,6 @@ def load_and_prepare_docs(
         embedding=embedding_model,
         collection_name=collection_name,
         persist_directory=None,  # disables persistence
-        is_persistent=False  # ✅ ensures in-memory mode
     )
 
     collections[collection_name] = vectorstore

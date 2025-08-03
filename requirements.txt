@@ -12,5 +12,4 @@ langchain-core
 sentence-transformers
 chromadb>=0.4.24
 bs4
-requests
 
