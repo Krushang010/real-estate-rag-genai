@@ -81,6 +81,8 @@ def load_and_prepare_docs(urls: List[str]) -> Chroma:
     vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=embedding_model,
+        collection_metadata={"name": "real_estate"},  # avoids SQLite fallback
+        client_settings={"anonymized_telemetry": False},  # in-memory enforcement
     )
 
     return vectorstore
