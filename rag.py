@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
 from langchain.docstore.document import Document
