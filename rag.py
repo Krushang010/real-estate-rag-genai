@@ -103,7 +103,8 @@ def load_and_prepare_docs(
         documents=chunks,
         embedding=embedding_model,
         collection_name=collection_name,
-        persist_directory=persist_directory
+        persist_directory=None,  # disables persistence
+        is_persistent=False  # ✅ ensures in-memory mode
     )
 
     collections[collection_name] = vectorstore
