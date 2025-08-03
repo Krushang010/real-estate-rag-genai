@@ -66,7 +66,7 @@ if "llm" not in st.session_state:
 if process_url_button:
     urls = [url for url in [url1, url2, url3] if url.strip()]
     if not urls:
-        placeholder.warning("❗ Please provide at least one valid URL.")
+        placeholder.warning("❗ Please provide at least one valid URL. Example: https://www.cnbc.com/")
     else:
         try:
             placeholder.info("⏳ Processing URLs...")
@@ -89,11 +89,12 @@ if query:
         if not st.session_state.qa_chain or not st.session_state.llm:
             st.warning("⚠️ Please process URLs first.")
         else:
-            # Inject globals (needed by pipeline)
-            globals()["qa_chain"] = st.session_state.qa_chain
-            globals()["llm"] = st.session_state.llm
-
-            summary, sources = run_rag_pipeline(query, st.session_state.qa_chain, st.session_state.llm)
+            with st.spinner("🧠 Generating answer..."):
+                summary, sources = run_rag_pipeline(
+                    query,
+                    st.session_state.qa_chain,
+                    st.session_state.llm
+                )
 
             st.markdown("### 📌 Answer")
             st.markdown(f"<div class='highlight'>{summary}</div>", unsafe_allow_html=True)

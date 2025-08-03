@@ -81,7 +81,6 @@ def load_and_prepare_docs(urls: List[str]) -> Chroma:
     vectorstore = Chroma.from_documents(
         documents=chunks,
         embedding=embedding_model,
-        persist_directory=None
     )
 
     return vectorstore
