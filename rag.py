@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
 import warnings
-from chromadb.config import Settings  # required to configure Chroma properly
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -58,7 +58,7 @@ def load_urls_parallel(urls: List[str], max_workers: int = 6) -> List[Document]:
     return [doc for doc in docs if doc]
 
 # ------------------------- VECTORSTORE SETUP -------------------------
-
+from chromadb.config import Settings  # ✅ Required for in-memory setup
 
 def load_and_prepare_docs(urls: List[str]) -> Chroma:
     docs = load_urls_parallel(urls)
@@ -79,12 +79,11 @@ def load_and_prepare_docs(urls: List[str]) -> Chroma:
 
     print(f"🔢 Embedding {len(chunks)} chunks...")
 
-    # ✅ Use DuckDB + in-memory mode (no SQLite at all)
+    # ✅ In-memory ChromaDB (NO SQLite)
     chroma_settings = Settings(
-        is_persistent=False,           # ensure no SQLite
-        anonymized_telemetry=False,    # optional
-        persist_directory=None,        # in-memory
-        database_impl="duckdb",        # ⬅️ force duckdb
+        chroma_db_impl="duckdb",
+        persist_directory=None,
+        anonymized_telemetry=False
     )
 
     vectorstore = Chroma.from_documents(
