@@ -224,7 +224,7 @@ if __name__ == "__main__":
     vectorstore = load_and_prepare_docs(
         urls=urls,
         collection_name="real_estate_collection",
-        persist_directory="chroma_db",
+        persist_directory=None,
         reset=False
     )
 
