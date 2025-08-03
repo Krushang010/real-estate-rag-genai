@@ -12,7 +12,7 @@ A modern Streamlit web app that answers real estate questions using Generative A
 
 🔗 Live Demo
 Try the app live:
-👉 Real Estate GenAI App (coming soon)
+👉 Real Estate GenAI App (https://real-estate-rag-genai.streamlit.app/)
 
 
 🔍🔍 Project Overview
@@ -36,7 +36,7 @@ What You Can Do:
 - 🔍 **Automated News Retrieval** from trusted real estate sources.
 - 📄 **Intelligent Text Chunking** with LangChain.
 - 🧠 **High-performance Embeddings** via HuggingFace Transformers.
-- 🗃️ **Vector Storage & Retrieval** using ChromaDB.
+- 🗃️ **Vector Storage & Retrieval** using FAISS.
 - 🤖 **LLM Question Answering** via ChatGroq (LLaMA3).
 - 🧼 **Custom Prompt Engineering** to enhance answer quality.
 - 💻 **Streamlit UI** to interact with the assistant easily.
@@ -50,7 +50,7 @@ What You Can Do:
 | Component         | Tool/Library                       |
 |------------------|-------------------------------------|
 | Embeddings       | `HuggingFaceEmbeddings`             |
-| Vector Store     | `Chroma`                            |
+| Vector Store     | `FAISS`                            |
 | LLM              | `ChatGroq (LLaMA3-8B)`              |
 | Chunking         | `RecursiveCharacterTextSplitter`    |
 | UI               | `Streamlit`                         |
@@ -74,8 +74,7 @@ NVIDIA GPU with at least 4GB VRAM (recommended)
 
 1. **Clone the repo:**
    ```bash
-    https://github.com/Krushang010/vehicle-damage-detection.git
-
+      (https://github.com/Krushang010/real-estate-rag-genai.git)
 2. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
@@ -94,7 +93,7 @@ Smart scraping to collect news from real estate sources.
 
 Document chunking to break down large articles.
 
-Embeddings + ChromaDB to search and retrieve the most relevant chunks.
+Embeddings + FAISS to search and retrieve the most relevant chunks.
 
 LLM with contextual prompts to generate human-like answers.
 
